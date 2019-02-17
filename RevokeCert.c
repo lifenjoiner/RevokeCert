@@ -8,6 +8,7 @@ https://stackoverflow.com/questions/36931928/how-to-retrieve-information-from-mu
 #include <stdio.h>
 #include <tchar.h>
 #include <locale.h>
+#include <mbctype.h>
 #include <windows.h>
 #include <wincrypt.h>
 
@@ -29,91 +30,89 @@ BOOL PrintCertificateInfo(PCCERT_CONTEXT pCertContext) {
     LPTSTR szName = NULL;
     DWORD dwData, n;
 
-    __try {
-        // Print Serial Number.
-        _tprintf(_T("SerialNumber: "));
-        dwData = pCertContext->pCertInfo->SerialNumber.cbData;
-        for (n = 0; n < dwData; n++) {
-            _tprintf(_T("%02x"),
-              pCertContext->pCertInfo->SerialNumber.pbData[dwData - (n + 1)]);
-        }
-        _tprintf(_T("\n"));
-
-        // Get Issuer name size.
-        if (!(dwData = CertGetNameString(pCertContext, 
-                                         CERT_NAME_SIMPLE_DISPLAY_TYPE,
-                                         CERT_NAME_ISSUER_FLAG,
-                                         NULL,
-                                         NULL,
-                                         0)))
-        {
-            _tprintf(_T("CertGetNameString failed.\n"));
-            __leave;
-        }
-
-        // Allocate memory for Issuer name.
-        szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(TCHAR));
-        if (!szName) {
-            _tprintf(_T("Unable to allocate memory for issuer name.\n"));
-            __leave;
-        }
-
-        // Get Issuer name.
-        if (!(CertGetNameString(pCertContext, 
-                                CERT_NAME_SIMPLE_DISPLAY_TYPE,
-                                CERT_NAME_ISSUER_FLAG,
-                                NULL,
-                                szName,
-                                dwData)))
-        {
-            _tprintf(_T("CertGetNameString failed.\n"));
-            __leave;
-        }
-
-        // print Issuer name.
-        _tprintf(_T("IssuerName: %s\n"), szName);
-        LocalFree(szName);
-        szName = NULL;
-
-        // Get Subject name size.
-        if (!(dwData = CertGetNameString(pCertContext, 
-                                         CERT_NAME_SIMPLE_DISPLAY_TYPE,
-                                         0,
-                                         NULL,
-                                         NULL,
-                                         0)))
-        {
-            _tprintf(_T("CertGetNameString failed.\n"));
-            __leave;
-        }
-
-        // Allocate memory for subject name.
-        szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(TCHAR));
-        if (!szName) {
-            _tprintf(_T("Unable to allocate memory for subject name.\n"));
-            __leave;
-        }
-
-        // Get subject name.
-        if (!(CertGetNameString(pCertContext, 
-                                CERT_NAME_SIMPLE_DISPLAY_TYPE,
-                                0,
-                                NULL,
-                                szName,
-                                dwData)))
-        {
-            _tprintf(_T("CertGetNameString failed.\n"));
-            __leave;
-        }
-
-        // Print Subject Name.
-        _tprintf(_T("SubjectName: %s\n"), szName);
-
-        fReturn = TRUE;
+    // Print Serial Number.
+    _tprintf(_T("SerialNumber: "));
+    dwData = pCertContext->pCertInfo->SerialNumber.cbData;
+    for (n = 0; n < dwData; n++) {
+        _tprintf(_T("%02x"),
+          pCertContext->pCertInfo->SerialNumber.pbData[dwData - (n + 1)]);
     }
-    __finally {
-        if (szName != NULL) LocalFree(szName);
+    _tprintf(_T("\n"));
+
+    // Get Issuer name size.
+    if (!(dwData = CertGetNameString(pCertContext,
+                                     CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                                     CERT_NAME_ISSUER_FLAG,
+                                     NULL,
+                                     NULL,
+                                     0)))
+    {
+        _tprintf(_T("CertGetNameString failed.\n"));
+        goto leave;
     }
+
+    // Allocate memory for Issuer name.
+    szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(TCHAR));
+    if (!szName) {
+        _tprintf(_T("Unable to allocate memory for issuer name.\n"));
+        goto leave;
+    }
+
+    // Get Issuer name.
+    if (!(CertGetNameString(pCertContext,
+                            CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                            CERT_NAME_ISSUER_FLAG,
+                            NULL,
+                            szName,
+                            dwData)))
+    {
+        _tprintf(_T("CertGetNameString failed.\n"));
+        goto leave;
+    }
+
+    // print Issuer name.
+    _tprintf(_T("IssuerName: %s\n"), szName);
+    LocalFree(szName);
+    szName = NULL;
+
+    // Get Subject name size.
+    if (!(dwData = CertGetNameString(pCertContext,
+                                     CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                                     0,
+                                     NULL,
+                                     NULL,
+                                     0)))
+    {
+        _tprintf(_T("CertGetNameString failed.\n"));
+        goto leave;
+    }
+
+    // Allocate memory for subject name.
+    szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(TCHAR));
+    if (!szName) {
+        _tprintf(_T("Unable to allocate memory for subject name.\n"));
+        goto leave;
+    }
+
+    // Get subject name.
+    if (!(CertGetNameString(pCertContext,
+                            CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                            0,
+                            NULL,
+                            szName,
+                            dwData)))
+    {
+        _tprintf(_T("CertGetNameString failed.\n"));
+        goto leave;
+    }
+
+    // Print Subject Name.
+    _tprintf(_T("SubjectName: %s\n"), szName);
+
+    fReturn = TRUE;
+
+leave:
+    if (szName != NULL) LocalFree(szName);
 
     return fReturn;
 }
@@ -164,7 +163,7 @@ BOOL GetSignerInfoFromMsg(HCRYPTMSG hMsg, PCMSG_SIGNER_INFO *ppSignerInfo) {
         _tprintf(_T("CryptMsgGetParam failed with %x\n"), GetLastError());
         return FALSE;
     }
-    
+
     return TRUE;
 }
 
@@ -190,14 +189,14 @@ BOOL GetCertContextInStoreBySignerInfo(PCCERT_CONTEXT *ppCertContext, HCERTSTORE
     else {
         fResult = TRUE;
     }
-    
+
     return fResult;
 }
 
 BOOL AddCertToDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
     HCERTSTORE hStore = NULL;
     BOOL fResult;
-    
+
     hStore = CertOpenSystemStore(0, _T("Disallowed"));
     if (!hStore) {
         _tprintf(_T("CertOpenSystemStore failed with %x\n"), GetLastError());
@@ -211,7 +210,7 @@ BOOL AddCertToDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
     if (!fResult) {
         _tprintf(_T("CertAddCertificateContextToStore failed with %x\n"), GetLastError());
     }
-    
+
     if (hStore != NULL) CertCloseStore(hStore, 0);
     return fResult;
 }
@@ -220,7 +219,7 @@ BOOL DelCertInDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
     HCERTSTORE hStore = NULL;
     PCCERT_CONTEXT pCertContext2;
     BOOL fResult;
-    
+
     hStore = CertOpenSystemStore(0, _T("Disallowed"));
     if (!hStore) {
         _tprintf(_T("CertOpenSystemStore failed with %x\n"), GetLastError());
@@ -239,7 +238,7 @@ BOOL DelCertInDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
             _tprintf(_T("DeleteCertificateFromStore failed with %x\n"), GetLastError());
         }
     }
-    
+
     if (pCertContext2 != NULL) CertFreeCertificateContext(pCertContext2);
     if (hStore != NULL) CertCloseStore(hStore, 0);
 
@@ -258,7 +257,7 @@ BOOL ProcessByCertContext(PCCERT_CONTEXT pCertContext, int action, TCHAR *fname)
     BOOL ret;
     TCHAR *fname_der;
     TCHAR fname_idx[4] = _T("");
-    
+
     PrintCertificateInfo(pCertContext);
     //
     switch (action) {
@@ -281,7 +280,7 @@ BOOL ProcessByCertContext(PCCERT_CONTEXT pCertContext, int action, TCHAR *fname)
     default:
         ret = TRUE;
     };
-    
+
     return ret;
 }
 
@@ -293,53 +292,51 @@ BOOL ProcessNestedSignedData(PCMSG_SIGNER_INFO pSignerInfoPre, int action, TCHAR
     DWORD dwEncoding, dwContentType, dwFormatType;
     PCMSG_SIGNER_INFO pSignerInfo = NULL;
     DWORD i;
-    
-    __try {
-        for (i = 0; i < pSignerInfoPre->UnauthAttrs.cAttr; i++) {
-            if (lstrcmpA(pSignerInfoPre->UnauthAttrs.rgAttr[i].pszObjId, szOID_NESTED_SIGNATURE) == 0)
-                break; // <-- Only one signer!
-        }
-        if (i >= pSignerInfoPre->UnauthAttrs.cAttr) __leave;
-        // Get message handle and store handle from the signed file.
-        fResult = CryptQueryObject(CERT_QUERY_OBJECT_BLOB,
-                                   //pSignerInfoPre->UnauthAttrs.rgAttr[i].rgValue[0].pbData,
-                                   pSignerInfoPre->UnauthAttrs.rgAttr[i].rgValue,
-                                   CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED,
-                                   CERT_QUERY_FORMAT_FLAG_BINARY,
-                                   0,
-                                   &dwEncoding,
-                                   &dwContentType,
-                                   &dwFormatType,
-                                   &hStore,
-                                   &hMsg,
-                                   NULL);
-        if (!fResult) {
-            _tprintf(_T("CryptQueryObject failed with %x\n"), GetLastError());
-            __leave;
-        }
-        
-        // Get signer information size.
-        fResult = GetSignerInfoFromMsg(hMsg, &pSignerInfo);
-        if (!fResult) __leave;
 
-        //
-        fResult = GetCertContextInStoreBySignerInfo(&pCertContext, hStore, pSignerInfo);
-        if (!fResult) __leave;
-        
-        //
-        _tprintf(_T("\n"));
-        fResult = ProcessByCertContext(pCertContext, action, fname);
-        
-        // The next nested one!
-        fResult = ProcessNestedSignedData(pSignerInfo, action, fname);
+    for (i = 0; i < pSignerInfoPre->UnauthAttrs.cAttr; i++) {
+        if (lstrcmpA(pSignerInfoPre->UnauthAttrs.rgAttr[i].pszObjId, szOID_NESTED_SIGNATURE) == 0)
+            break; // <-- Only one signer!
     }
-    __finally {
-        if (hMsg != NULL) CryptMsgClose(hMsg);
-        if (pCertContext != NULL) CertFreeCertificateContext(pCertContext);
-        if (hStore != NULL) CertCloseStore(hStore, 0);
-        if (pSignerInfo != NULL) LocalFree(pSignerInfo);
+    if (i >= pSignerInfoPre->UnauthAttrs.cAttr) goto leave;
+    // Get message handle and store handle from the signed file.
+    fResult = CryptQueryObject(CERT_QUERY_OBJECT_BLOB,
+                               //pSignerInfoPre->UnauthAttrs.rgAttr[i].rgValue[0].pbData,
+                               pSignerInfoPre->UnauthAttrs.rgAttr[i].rgValue,
+                               CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED,
+                               CERT_QUERY_FORMAT_FLAG_BINARY,
+                               0,
+                               &dwEncoding,
+                               &dwContentType,
+                               &dwFormatType,
+                               &hStore,
+                               &hMsg,
+                               NULL);
+    if (!fResult) {
+        _tprintf(_T("CryptQueryObject failed with %x\n"), GetLastError());
+        goto leave;
     }
-    
+
+    // Get signer information size.
+    fResult = GetSignerInfoFromMsg(hMsg, &pSignerInfo);
+    if (!fResult) goto leave;
+
+    //
+    fResult = GetCertContextInStoreBySignerInfo(&pCertContext, hStore, pSignerInfo);
+    if (!fResult) goto leave;
+
+    //
+    _tprintf(_T("\n"));
+    fResult = ProcessByCertContext(pCertContext, action, fname);
+
+    // The next nested one!
+    fResult = ProcessNestedSignedData(pSignerInfo, action, fname);
+
+leave:
+    if (hMsg != NULL) CryptMsgClose(hMsg);
+    if (pCertContext != NULL) CertFreeCertificateContext(pCertContext);
+    if (hStore != NULL) CertCloseStore(hStore, 0);
+    if (pSignerInfo != NULL) LocalFree(pSignerInfo);
+
     return !fResult;
 }
 
@@ -351,101 +348,101 @@ int _tmain(int argc, TCHAR *argv[]) {
     DWORD dwEncoding, dwContentType, dwFormatType;
     PCMSG_SIGNER_INFO pSignerInfo = NULL;
     DWORD i;
-    
+
     int action;
     size_t n;
     TCHAR *fname;
     WCHAR *fname_w;
-    
+
     BYTE *pbCertEncoded;
 
     TCHAR MBCP[8] = _T("");
     int CP;
 
-    __try {
-        if (argc != 3) {
-            _tprintf(_T("Usage: %s <r|u|d> <PE or cert filename>\n"), argv[0]);
-            _tprintf(_T("    r: revoke; u: undo revoke; d: dump to cert file beside input\n"));
-            return 1;
-        }
+    if (argc != 3) {
+        _tprintf(_T("Usage: %s <r|u|d> <PE or cert filename>\n"), argv[0]);
+        _tprintf(_T("    r: revoke; u: undo revoke; d: dump to cert file beside input\n"));
+        return 1;
+    }
 
-        if (!_tcsicmp(argv[1], _T("d"))) { action = DUMP; }
-        else if (!_tcsicmp(argv[1], _T("r"))) { action = REVOKE; }
-        else if (!_tcsicmp(argv[1], _T("u"))) { action = UNREVOKE; }
-        //
-        fname = argv[2];
+    if (!_tcsicmp(argv[1], _T("d"))) { action = DUMP; }
+    else if (!_tcsicmp(argv[1], _T("r"))) { action = REVOKE; }
+    else if (!_tcsicmp(argv[1], _T("u"))) { action = UNREVOKE; }
+    //
+    fname = argv[2];
 
-        //
-        CP = _getmbcp(); /* Consider it's different from default. */
-        if (CP > 0) _sntprintf(MBCP, sizeof(MBCP), _T(".%d"), CP);
-        _tsetlocale(LC_ALL, MBCP);
+    //
+    CP = _getmbcp(); /* Consider it's different from default. */
+    if (CP > 0) _sntprintf(MBCP, sizeof(MBCP), _T(".%d"), CP);
+    _tsetlocale(LC_ALL, MBCP);
 
 #ifdef UNICODE
-        fname_w = _tcsdup(fname);
+    fname_w = _tcsdup(fname);
 #else
-        n = 2 * (strlen(fname) + 1);
-        fname_w = malloc(n);
-        if (mbstowcs(fname_w, fname, n) == -1) {
-            printf("Unable to convert to unicode.\n");
-            __leave;
-        }
+    n = 2 * (strlen(fname) + 1);
+    fname_w = malloc(n);
+    if (mbstowcs(fname_w, fname, n) == -1) {
+        printf("Unable to convert to unicode.\n");
+        goto leave;
+    }
 #endif
 
-        // try cert file
-        fResult = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
-                                   fname_w,
-                                   CERT_QUERY_CONTENT_FLAG_CERT,
-                                   CERT_QUERY_FORMAT_FLAG_ALL,
-                                   0,
-                                   &dwEncoding,
-                                   &dwContentType,
-                                   &dwFormatType,
-                                   &hStore,
-                                   &hMsg,
-                                   &pCertContext);
-        if (fResult && dwContentType == CERT_QUERY_CONTENT_CERT && pCertContext) {
-            fResult = ProcessByCertContext(pCertContext, action, fname);
-            __leave;
-        }
-
-        // Get message handle and store handle from the signed file.
-        fResult = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
-                                   fname_w,
-                                   CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
-                                   CERT_QUERY_FORMAT_FLAG_BINARY,
-                                   0,
-                                   &dwEncoding,
-                                   &dwContentType,
-                                   &dwFormatType,
-                                   &hStore,
-                                   &hMsg,
-                                   NULL);
-        if (!fResult) {
-            _tprintf(_T("CryptQueryObject failed with %x\n"), GetLastError());
-            __leave;
-        }
-        
-        // Get signer information size.
-        fResult = GetSignerInfoFromMsg(hMsg, &pSignerInfo);
-        if (!fResult) __leave;
-
-        //
-        fResult = GetCertContextInStoreBySignerInfo(&pCertContext, hStore, pSignerInfo);
-        if (!fResult) __leave;
-        
-        //
+    // try cert file
+    fResult = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
+                               fname_w,
+                               CERT_QUERY_CONTENT_FLAG_CERT,
+                               CERT_QUERY_FORMAT_FLAG_ALL,
+                               0,
+                               &dwEncoding,
+                               &dwContentType,
+                               &dwFormatType,
+                               &hStore,
+                               &hMsg,
+                               (const void**)&pCertContext);
+    if (fResult && dwContentType == CERT_QUERY_CONTENT_CERT && pCertContext) {
         fResult = ProcessByCertContext(pCertContext, action, fname);
-        
+
         // NESTED SIGNATURE in CMSG_SIGNER_INFO.UnauthAttrs, multiple/dual code signatures
         fResult = ProcessNestedSignedData(pSignerInfo, action, fname);
+        goto leave;
+    }
 
+    // Get message handle and store handle from the signed file.
+    fResult = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
+                               fname_w,
+                               CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
+                               CERT_QUERY_FORMAT_FLAG_BINARY,
+                               0,
+                               &dwEncoding,
+                               &dwContentType,
+                               &dwFormatType,
+                               &hStore,
+                               &hMsg,
+                               NULL);
+    if (!fResult) {
+        _tprintf(_T("CryptQueryObject failed with %x\n"), GetLastError());
+        goto leave;
     }
-    __finally {
-        if (hMsg != NULL) CryptMsgClose(hMsg);
-        if (pSignerInfo != NULL) LocalFree(pSignerInfo);
-        if (pCertContext != NULL) CertFreeCertificateContext(pCertContext);
-        if (hStore != NULL) CertCloseStore(hStore, 0);
-    }
-    
+
+    // Get signer information size.
+    fResult = GetSignerInfoFromMsg(hMsg, &pSignerInfo);
+    if (!fResult) goto leave;
+
+    //
+    fResult = GetCertContextInStoreBySignerInfo(&pCertContext, hStore, pSignerInfo);
+    if (!fResult) goto leave;
+
+    //
+    fResult = ProcessByCertContext(pCertContext, action, fname);
+
+    // NESTED SIGNATURE in CMSG_SIGNER_INFO.UnauthAttrs, multiple/dual code signatures
+    fResult = ProcessNestedSignedData(pSignerInfo, action, fname);
+
+leave:
+    if (hMsg != NULL) CryptMsgClose(hMsg);
+    if (pSignerInfo != NULL) LocalFree(pSignerInfo);
+    if (pCertContext != NULL) CertFreeCertificateContext(pCertContext);
+    if (hStore != NULL) CertCloseStore(hStore, 0);
+
     return !fResult;
 }

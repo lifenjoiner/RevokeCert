@@ -1,8 +1,5 @@
 // https://support.microsoft.com/en-us/help/323809/how-to-get-information-from-authenticode-signed-executables
 
-#define _UNICODE
-#define UNICODE
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <tchar.h>
@@ -29,6 +26,8 @@ int _tmain(int argc, TCHAR *argv[]) {
     PCMSG_SIGNER_INFO pSignerInfo = NULL;
     DWORD dwSignerInfo;
     CERT_INFO CertInfo;
+    WCHAR *fname_w;
+    size_t n;
     TCHAR *fname, *fname_der;
     FILE *fp_w = NULL;
     
@@ -43,9 +42,21 @@ int _tmain(int argc, TCHAR *argv[]) {
 
         //
         fname = argv[2];
+
+#ifdef UNICODE
+        fname_w = _tcsdup(fname);
+#else
+        n = 2 * (strlen(fname) + 1);
+        fname_w = malloc(n);
+        if (mbstowcs(fname_w, fname, n) == -1) {
+            printf("Unable to convert to unicode.\n");
+            __leave;
+        }
+#endif
+
         // Get message handle and store handle from the signed file.
         fResult = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
-                                   fname,
+                                   fname_w,
                                    CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
                                    CERT_QUERY_FORMAT_FLAG_BINARY,
                                    0,
@@ -57,7 +68,7 @@ int _tmain(int argc, TCHAR *argv[]) {
                                    NULL);
         if (!fResult) {
             fResult = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
-                                       fname,
+                                       fname_w,
                                        CERT_QUERY_CONTENT_FLAG_CERT,
                                        CERT_QUERY_FORMAT_FLAG_ALL,
                                        0,
@@ -149,6 +160,7 @@ AceessByCertContext:
             }
             fwrite(pCertContext->pbCertEncoded, 1, pCertContext->cbCertEncoded, fp_w);
             fflush(fp_w);
+            _tprintf(_T("%s\n"), fname_der);
             __leave;
         }
         //

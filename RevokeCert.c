@@ -21,7 +21,7 @@ TCHAR *_tcscat_x(TCHAR *path, TCHAR *ext_path) {
 }
 
 int _tmain(int argc, TCHAR *argv[]) {
-    HCERTSTORE hStore = NULL, hSystemStore = NULL;
+    HCERTSTORE hStore = NULL, hStore2 = NULL;
     HCRYPTMSG hMsg = NULL;
     PCCERT_CONTEXT pCertContext = NULL, pCertContext2 = NULL;
     BOOL fResult;
@@ -29,11 +29,15 @@ int _tmain(int argc, TCHAR *argv[]) {
     PCMSG_SIGNER_INFO pSignerInfo = NULL;
     DWORD dwSignerInfo;
     CERT_INFO CertInfo;
-    TCHAR *fname;
+    TCHAR *fname, *fname_der;
+    FILE *fp_w = NULL;
+    
+    BYTE *pbCertEncoded;
 
     __try {
         if (argc != 3) {
-            _tprintf(_T("Usage: SignedFileInfo <r|u> <PE or cert filename>\n"));
+            _tprintf(_T("Usage: %s <r|u|d> <PE or cert filename>\n"), argv[0]);
+            _tprintf(_T("    r: revoke; u: undo revoke; d: dump to cert file beside input\n"));
             return 1;
         }
 
@@ -132,17 +136,31 @@ int _tmain(int argc, TCHAR *argv[]) {
 
 AceessByCertContext:
         //
-        hSystemStore = CertOpenSystemStore(0, _T("Disallowed"));
-        if (!hSystemStore) {
+        PrintCertificateInfo(pCertContext);
+        //
+        if (!_tcsicmp(argv[1], _T("d"))) {
+            fname_der = _tcsdup(fname);
+            fname_der = _tcscat_x(fname_der, _T(".der"));
+            //
+            fp_w = _tfopen(fname_der, _T("w+b"));
+            if (fp_w == NULL) {
+                _tprintf(_T("fail-write\n"));
+                __leave;
+            }
+            fwrite(pCertContext->pbCertEncoded, 1, pCertContext->cbCertEncoded, fp_w);
+            fflush(fp_w);
+            __leave;
+        }
+        //
+        hStore2 = CertOpenSystemStore(0, _T("Disallowed"));
+        if (!hStore2) {
             _tprintf(_T("CertOpenSystemStore failed with %x\n"), GetLastError());
             __leave;
         }
         //
-        PrintCertificateInfo(pCertContext);
-        //
         if (!_tcsicmp(argv[1], _T("r"))) {
             // user's store
-            fResult = CertAddCertificateContextToStore(hSystemStore,
+            fResult = CertAddCertificateContextToStore(hStore2,
                                                        pCertContext,
                                                        CERT_STORE_ADD_USE_EXISTING,
                                                        NULL);
@@ -153,7 +171,7 @@ AceessByCertContext:
         }
         else if (!_tcsicmp(argv[1], _T("u"))) {
             // user's store
-            pCertContext2 = CertFindCertificateInStore(hSystemStore,
+            pCertContext2 = CertFindCertificateInStore(hStore2,
                                                        ENCODING,
                                                        0,
                                                        CERT_FIND_EXISTING,
@@ -175,7 +193,11 @@ AceessByCertContext:
         if (pCertContext != NULL) CertFreeCertificateContext(pCertContext);
         if (hStore != NULL) CertCloseStore(hStore, 0);
         if (hMsg != NULL) CryptMsgClose(hMsg);
-        if (hSystemStore != NULL) CertCloseStore(hSystemStore, 0);
+        if (pCertContext2 != NULL) CertFreeCertificateContext(pCertContext2);
+        if (hStore2 != NULL) CertCloseStore(hStore2, 0);
+
+        free(fname_der);
+        if (fp_w) fclose(fp_w);
     }
     return !fResult;
 }

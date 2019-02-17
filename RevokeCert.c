@@ -1,3 +1,7 @@
+/* Intro
+RevokeCert is a tool written in WinAPI to revoke, undo revoke, or dump certificates from PE or cert files.
+*/
+
 /* References
 https://support.microsoft.com/en-us/help/323809/how-to-get-information-from-authenticode-signed-executables
 szOID_NESTED_SIGNATURE:
@@ -173,8 +177,7 @@ BOOL GetCertContextInStoreBySignerInfo(PCCERT_CONTEXT *ppCertContext, HCERTSTORE
     CERT_INFO CertInfo;
     BOOL fResult;
 
-    // Search for the signer certificate in the temporary
-    // certificate store.
+    // Search for the signer certificate in the temporary certificate store.
     CertInfo.Issuer = pSignerInfo->Issuer;
     CertInfo.SerialNumber = pSignerInfo->SerialNumber;
 
@@ -303,8 +306,9 @@ BOOL ProcessNestedSignedData(PCMSG_SIGNER_INFO pSignerInfoPre, int action, TCHAR
     }
     if (i >= pSignerInfoPre->UnauthAttrs.cAttr) goto leave;
     // Get message handle and store handle from the signed file.
-    // Failed on XP!? XP does NOT support this new standard. Can't decode. >= Win7
+    // Failed on XP!? XP does NOT support the new SHA2 standard. Can't decode.
     // https://social.msdn.microsoft.com/Forums/windowsdesktop/en-US/40dcf50b-c637-4d7d-b0c0-598a61f96f8c/rfc3161-timestamp-information-in-digital-signature-authenticode?forum=windowsgeneraldevelopmentissues
+    // https://blogs.technet.microsoft.com/pki/2010/09/30/sha2-and-windows/
     fResult = CryptQueryObject(CERT_QUERY_OBJECT_BLOB,
                                pSignerInfoPre->UnauthAttrs.rgAttr[i].rgValue,
                                CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED,
@@ -317,11 +321,11 @@ BOOL ProcessNestedSignedData(PCMSG_SIGNER_INFO pSignerInfoPre, int action, TCHAR
                                &hMsg,
                                NULL);
     if (!fResult) {
-        _tprintf(_T("CryptQueryObject failed with 0x%08x on nested SignedData (OS < Win7 does NOT support)\n"), GetLastError());
+        _tprintf(_T("CryptQueryObject failed with 0x%08x on nested SignedData\n"), GetLastError());
         goto leave;
     }
 
-    // Get signer information size.
+    // Get signer information
     fResult = GetSignerInfoFromMsg(hMsg, &pSignerInfo);
     if (!fResult) goto leave;
 
@@ -367,7 +371,10 @@ int _tmain(int argc, TCHAR *argv[]) {
     if (argc != 3) {
         _tprintf(_T("Usage: %s <r|u|d|v> <PE or cert filename>\n"), argv[0]);
         _tprintf(_T("    r: revoke; u: undo revoke; d: dump to cert file beside input; v: view info\n"));
+        _tprintf(_T("@lifenjoiner #20190217\n"));
         _tprintf(_T("Stop app to run needs UAC. https://en.wikipedia.org/wiki/User_Account_Control\n"));
+        _tprintf(_T("OS < Windows NT 6.0 needs hotfix for SHA2\n"));
+        _tprintf(_T("KB968730: https://blogs.technet.microsoft.com/pki/2010/09/30/sha2-and-windows\n"));
         return 1;
     }
 
@@ -413,7 +420,7 @@ int _tmain(int argc, TCHAR *argv[]) {
     // Get message handle and store handle from the signed file.
     fResult = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
                                fname_w,
-                               CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
+                               CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED|CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED,
                                CERT_QUERY_FORMAT_FLAG_BINARY,
                                0,
                                &dwEncoding,

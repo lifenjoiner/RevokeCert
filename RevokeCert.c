@@ -2,6 +2,8 @@
 https://support.microsoft.com/en-us/help/323809/how-to-get-information-from-authenticode-signed-executables
 szOID_NESTED_SIGNATURE:
 https://stackoverflow.com/questions/36931928/how-to-retrieve-information-from-multiple-dual-code-signatures-on-an-executable
+UAC
+https://en.wikipedia.org/wiki/User_Account_Control
 */
 
 #include <stdlib.h>
@@ -142,7 +144,7 @@ BOOL GetSignerInfoFromMsg(HCRYPTMSG hMsg, PCMSG_SIGNER_INFO *ppSignerInfo) {
                                NULL,
                                &dwSignerInfo);
     if (!fResult) {
-        _tprintf(_T("CryptMsgGetParam failed with %x\n"), GetLastError());
+        _tprintf(_T("CryptMsgGetParam failed with 0x%08x\n"), GetLastError());
         return FALSE;
     }
 
@@ -160,7 +162,7 @@ BOOL GetSignerInfoFromMsg(HCRYPTMSG hMsg, PCMSG_SIGNER_INFO *ppSignerInfo) {
                                (PVOID)*ppSignerInfo,
                                &dwSignerInfo);
     if (!fResult) {
-        _tprintf(_T("CryptMsgGetParam failed with %x\n"), GetLastError());
+        _tprintf(_T("CryptMsgGetParam failed with 0x%08x\n"), GetLastError());
         return FALSE;
     }
 
@@ -183,7 +185,7 @@ BOOL GetCertContextInStoreBySignerInfo(PCCERT_CONTEXT *ppCertContext, HCERTSTORE
                                               (PVOID)&CertInfo,
                                               NULL);
     if (!*ppCertContext) {
-        _tprintf(_T("CertFindCertificateInStore failed with %x\n"), GetLastError());
+        _tprintf(_T("CertFindCertificateInStore failed with 0x%08x\n"), GetLastError());
         fResult = FALSE;
     }
     else {
@@ -199,7 +201,7 @@ BOOL AddCertToDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
 
     hStore = CertOpenSystemStore(0, _T("Disallowed"));
     if (!hStore) {
-        _tprintf(_T("CertOpenSystemStore failed with %x\n"), GetLastError());
+        _tprintf(_T("CertOpenSystemStore failed with 0x%08x\n"), GetLastError());
         return FALSE;
     }
     // user's store
@@ -208,7 +210,7 @@ BOOL AddCertToDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
                                                CERT_STORE_ADD_USE_EXISTING,
                                                NULL);
     if (!fResult) {
-        _tprintf(_T("CertAddCertificateContextToStore failed with %x\n"), GetLastError());
+        _tprintf(_T("CertAddCertificateContextToStore failed with 0x%08x\n"), GetLastError());
     }
 
     if (hStore != NULL) CertCloseStore(hStore, 0);
@@ -222,7 +224,7 @@ BOOL DelCertInDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
 
     hStore = CertOpenSystemStore(0, _T("Disallowed"));
     if (!hStore) {
-        _tprintf(_T("CertOpenSystemStore failed with %x\n"), GetLastError());
+        _tprintf(_T("CertOpenSystemStore failed with 0x%08x\n"), GetLastError());
         return FALSE;
     }
     // user's store
@@ -235,7 +237,7 @@ BOOL DelCertInDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
     if (pCertContext2) {
         fResult = CertDeleteCertificateFromStore(pCertContext2);
         if (!fResult) {
-            _tprintf(_T("DeleteCertificateFromStore failed with %x\n"), GetLastError());
+            _tprintf(_T("DeleteCertificateFromStore failed with 0x%08x\n"), GetLastError());
         }
     }
 
@@ -245,7 +247,7 @@ BOOL DelCertInDisallowedByCertContext(PCCERT_CONTEXT pCertContext) {
     return fResult;
 }
 
-enum _Process_ACTION {
+enum _PROCESS_ACTION {
     REVOKE = 1,
     UNREVOKE,
     DUMP
@@ -301,8 +303,9 @@ BOOL ProcessNestedSignedData(PCMSG_SIGNER_INFO pSignerInfoPre, int action, TCHAR
     }
     if (i >= pSignerInfoPre->UnauthAttrs.cAttr) goto leave;
     // Get message handle and store handle from the signed file.
+    // Failed on XP!? XP does NOT support this new standard. Can't decode. >= Win7
+    // https://social.msdn.microsoft.com/Forums/windowsdesktop/en-US/40dcf50b-c637-4d7d-b0c0-598a61f96f8c/rfc3161-timestamp-information-in-digital-signature-authenticode?forum=windowsgeneraldevelopmentissues
     fResult = CryptQueryObject(CERT_QUERY_OBJECT_BLOB,
-                               //pSignerInfoPre->UnauthAttrs.rgAttr[i].rgValue[0].pbData,
                                pSignerInfoPre->UnauthAttrs.rgAttr[i].rgValue,
                                CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED,
                                CERT_QUERY_FORMAT_FLAG_BINARY,
@@ -314,7 +317,7 @@ BOOL ProcessNestedSignedData(PCMSG_SIGNER_INFO pSignerInfoPre, int action, TCHAR
                                &hMsg,
                                NULL);
     if (!fResult) {
-        _tprintf(_T("CryptQueryObject failed with %x\n"), GetLastError());
+        _tprintf(_T("CryptQueryObject failed with 0x%08x on nested SignedData (OS < Win7 does NOT support)\n"), GetLastError());
         goto leave;
     }
 
@@ -364,6 +367,7 @@ int _tmain(int argc, TCHAR *argv[]) {
     if (argc != 3) {
         _tprintf(_T("Usage: %s <r|u|d|v> <PE or cert filename>\n"), argv[0]);
         _tprintf(_T("    r: revoke; u: undo revoke; d: dump to cert file beside input; v: view info\n"));
+        _tprintf(_T("Stop app to run needs UAC. https://en.wikipedia.org/wiki/User_Account_Control\n"));
         return 1;
     }
 
@@ -419,7 +423,7 @@ int _tmain(int argc, TCHAR *argv[]) {
                                &hMsg,
                                NULL);
     if (!fResult) {
-        _tprintf(_T("CryptQueryObject failed with %x\n"), GetLastError());
+        _tprintf(_T("CryptQueryObject failed with 0x%08x\n"), GetLastError());
         goto leave;
     }
 

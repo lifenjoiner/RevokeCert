@@ -263,9 +263,11 @@ BOOL ProcessByCertContext(PCCERT_CONTEXT pCertContext, int action, TCHAR *fname)
     switch (action) {
     case REVOKE:
         ret = AddCertToDisallowedByCertContext(pCertContext);
+        _tprintf(_T("Added\n"));
         break;
     case UNREVOKE:
         ret = DelCertInDisallowedByCertContext(pCertContext);
+        _tprintf(_T("Deleted\n"));
         break;
     case DUMP:
         fname_der = _tcsdup(fname);
@@ -275,7 +277,7 @@ BOOL ProcessByCertContext(PCCERT_CONTEXT pCertContext, int action, TCHAR *fname)
         fname_der = _tcscat_x(fname_der, _T(".der"));
         //
         ret = DumpBuffToFile(fname_der, pCertContext->pbCertEncoded, pCertContext->cbCertEncoded);
-        _tprintf(_T("%s\n"), fname_der);
+        _tprintf(_T("Dumped: %s\n"), fname_der);
         break;
     default:
         ret = TRUE;
@@ -360,8 +362,8 @@ int _tmain(int argc, TCHAR *argv[]) {
     int CP;
 
     if (argc != 3) {
-        _tprintf(_T("Usage: %s <r|u|d> <PE or cert filename>\n"), argv[0]);
-        _tprintf(_T("    r: revoke; u: undo revoke; d: dump to cert file beside input\n"));
+        _tprintf(_T("Usage: %s <r|u|d|v> <PE or cert filename>\n"), argv[0]);
+        _tprintf(_T("    r: revoke; u: undo revoke; d: dump to cert file beside input; v: view info\n"));
         return 1;
     }
 
@@ -401,9 +403,6 @@ int _tmain(int argc, TCHAR *argv[]) {
                                (const void**)&pCertContext);
     if (fResult && dwContentType == CERT_QUERY_CONTENT_CERT && pCertContext) {
         fResult = ProcessByCertContext(pCertContext, action, fname);
-
-        // NESTED SIGNATURE in CMSG_SIGNER_INFO.UnauthAttrs, multiple/dual code signatures
-        fResult = ProcessNestedSignedData(pSignerInfo, action, fname);
         goto leave;
     }
 

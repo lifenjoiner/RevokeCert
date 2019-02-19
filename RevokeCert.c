@@ -287,6 +287,7 @@ BOOL ProcessByCertContext(PCCERT_CONTEXT pCertContext, int action, TCHAR *fname)
     default:
         ret = TRUE;
     };
+    _tprintf(_T("\n"));
 
     return ret;
 }
@@ -334,7 +335,6 @@ BOOL ProcessNestedSignedData(PCMSG_SIGNER_INFO pSignerInfoPre, int action, TCHAR
     if (!fResult) goto leave;
 
     //
-    _tprintf(_T("\n"));
     fResult = ProcessByCertContext(pCertContext, action, fname);
 
     // The next nested one!

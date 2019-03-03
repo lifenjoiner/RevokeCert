@@ -18,7 +18,7 @@ https://en.wikipedia.org/wiki/User_Account_Control
 #include <windows.h>
 #include <wincrypt.h>
 
-#pragma comment(lib, "crypt32.lib")
+#pragma comment(lib, "crypt32")
 
 #define ENCODING (X509_ASN_ENCODING | PKCS_7_ASN_ENCODING)
 
